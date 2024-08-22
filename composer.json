@@ -1,0 +1,39 @@
+{
+  "name" : "optemiz/plugin-tracker",
+  "description" : "Plugin tracker packages.",
+  "version" : "1.0.0",
+  "license" : "GPL-3.0-or-later",
+  "type" : "library",
+  "keywords" : [
+    "wordpress",
+    "optemiz",
+    "plugin-tracker",
+    "plugin"
+  ],
+  "authors" : [
+    {
+      "name" : "Optemiz",
+      "email" : "optemizceo@gmail.com"
+    }
+  ],
+  "minimum-stability" : "dev",
+  "require" : {
+    "php" : ">=7.4"
+  },
+  "require-dev" : {
+    "phpcompatibility/phpcompatibility-wp" : "^2.1.4",
+    "wp-coding-standards/wpcs" : "^3.0.1"
+  },
+  "autoload" : {
+    "psr-4" : {
+      "Optemiz\\PluginTracker\\" : "includes/"
+    }
+  },
+  "config" : {
+    "optimize-autoloader" : true,
+    "sort-packages" : true,
+    "allow-plugins" : {
+      "dealerdirect/phpcodesniffer-composer-installer" : true
+    }
+  }
+}

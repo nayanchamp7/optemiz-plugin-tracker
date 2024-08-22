@@ -1,0 +1,16 @@
+.DS_Store
+phpcs.xml
+phpunit.xml
+Thumbs.db
+wp-cli.local.yml
+node_modules/
+npm-debug.log
+*.sql
+*.lock
+*.tar.gz
+*.zip
+.idea
+vendor/
+languages/
+mix-manifest.json
+package-lock.json
