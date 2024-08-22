@@ -71,7 +71,32 @@ if ( ! class_exists( 'Tracker', false ) ) :
             $new_data['status'] = 'activated';
             $new_data['last_updated_date'] = time();
 
-            $this->send_request($new_data, home_url() . '/wp-json/optemiz/v1/email_tracker/optin');
+            //generate token.
+            $token_data['site_url']     = $data['url'];
+            $token_data['plugin_name']  = $this->slug;
+            $response = $this->send_request($token_data, home_url() . '/wp-json/optemiz/v1/email_tracker/generate_token', true);
+
+
+            error_log("response message");
+            error_log(print_r($response, true));
+
+            if (is_wp_error($response)) {
+                $error_message = $response->get_error_message();
+                error_log("error message");
+                error_log(print_r($error_message, true));
+            } else {
+                // Get the body of the response
+                $response_body = wp_remote_retrieve_body($response);
+
+                error_log("response_body: ");
+            
+                // Print the response
+                error_log(print_r($response_body, true));
+            }
+
+            //get token.
+
+            //$this->send_request($new_data, home_url() . '/wp-json/optemiz/v1/email_tracker/optin');
         }
         
         function uninstall_reason_submitted($data) {
@@ -103,10 +128,13 @@ if ( ! class_exists( 'Tracker', false ) ) :
 
             error_log('-- params --');
             error_log(print_r($params, true));
+
+            $params = json_encode($params);
 	
 			$headers = [
-				'user-agent' => 'OPT_Email_Tracker/' . md5( esc_url( home_url() ) ) . ';',
-				'Accept'     => 'application/json',
+				'user-agent'      => 'OPT_Email_Tracker/' . md5( esc_url( home_url() ) ) . ';',
+				'Accept'          => 'application/json',
+				'Content-Type'    => 'application/json',
 			];
 	
 			$response = wp_remote_post(
