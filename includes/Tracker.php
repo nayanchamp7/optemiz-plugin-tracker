@@ -25,8 +25,11 @@ if ( ! class_exists( 'Tracker', false ) ) :
 
         public $slug;
 
+        public $plugin_base_path;
+
+        public $insights;
+
         function __construct() {
-            $this->slug = 'current-template-name'; //@TODO need to be dynamic.
 
             add_action( 'upgrader_process_complete', array($this, 'plugin_updated'), 10, 2 );
 
@@ -76,27 +79,24 @@ if ( ! class_exists( 'Tracker', false ) ) :
             $token_data['plugin_name']  = $this->slug;
             $response = $this->send_request($token_data, home_url() . '/wp-json/optemiz/v1/email_tracker/generate_token', true);
 
-
-            error_log("response message");
-            error_log(print_r($response, true));
-
             if (is_wp_error($response)) {
                 $error_message = $response->get_error_message();
-                error_log("error message");
-                error_log(print_r($error_message, true));
             } else {
                 // Get the body of the response
-                $response_body = wp_remote_retrieve_body($response);
+                $response_body  = wp_remote_retrieve_body($response);
+                $data           = json_decode($response_body, true);
 
-                error_log("response_body: ");
-            
-                // Print the response
-                error_log(print_r($response_body, true));
+                $token_option_name = $this->get_token_option_name();
+                $token_exist = get_option($token_option_name);
+
+                if(false === $token_exist && isset($data['token'])) {
+                    update_option($token_option_name, $data['token']);
+
+                    $new_data['token'] = $data['token'];
+
+                    $this->send_request($new_data, home_url() . '/wp-json/optemiz/v1/email_tracker/optin');
+                }
             }
-
-            //get token.
-
-            //$this->send_request($new_data, home_url() . '/wp-json/optemiz/v1/email_tracker/optin');
         }
         
         function uninstall_reason_submitted($data) {
@@ -125,10 +125,6 @@ if ( ! class_exists( 'Tracker', false ) ) :
         }
 
         public function send_request( $params, $url, $blocking = false ) {
-
-            error_log('-- params --');
-            error_log(print_r($params, true));
-
             $params = json_encode($params);
 	
 			$headers = [
@@ -161,37 +157,51 @@ if ( ! class_exists( 'Tracker', false ) ) :
          * @param $options Array
          */
         function plugin_updated( $upgrader_object, $options ) {
-            // plugin root file path.
-            $target_plugin = 'current-template-name/current-template-name.php'; //@TODO need to be dynamic.
 
-            error_log('plugin updated on: ' . $target_plugin);
+            error_log('plugin updated on: ' . $this->plugin_base_path);
             
             // when plugin is updated.
             if( $options['action'] == 'update' && $options['type'] == 'plugin' && isset( $options['plugins'] ) ) {
                 foreach( $options['plugins'] as $plugin ) {
-                    error_log($plugin . 'is updated.');
                     
-                    if( $plugin == $target_plugin ) {
+                    if( $plugin == $this->plugin_base_path ) {
+                        $token_option_name  = $this->get_token_option_name();
+                        $already_tracked    = get_option($token_option_name);
 
-                        // Set a transient to record that our plugin has just been updated.
-                        //set_transient( 'wp_upe_updated', 1 );
+                        //when no token exists, send data.
+                        if (false === $already_tracked) {
+                            $allow_tracking = get_option("{$this->slug}_allow_tracking");
 
-                        //@TODO do the after update things.
+                            if("yes" === $allow_tracking) {
+                                $tracking_data = $this->insights->get_tracking_data();
 
-                        error_log($plugin . 'is updated.');
+                                error_log('tracking data.');
+                                error_log(print_r($tracking_data, true));
 
-                        $already_tracked = get_option("opt_tracked_{$this->slug}");
-
-                        if ($already_tracked === false) {
-                            $appsero_insight_obj = ''; //@TODO need to be dynamic.
-                            // $tracking_data = $appsero_insight_obj->get_tracking_data();
+                                $this->tracker_optin($tracking_data);
+                            }
                         }
-
 
                     }
                 }
             }
         }
+
+        /**
+         * Get token option name.
+         */
+        function get_token_option_name() {
+            $site_url 		= home_url();
+            $plugin_name 	= $this->slug;
+
+            $site_url 		= base64_encode($site_url);
+            $plugin_name 	= base64_encode($plugin_name);
+
+            $token_option_name = "opt_tracked_{$site_url}_{$plugin_name}_token";
+
+            return apply_filters("opt_filter_token_option_name", $token_option_name);
+        }
+
     }
 
 endif;
