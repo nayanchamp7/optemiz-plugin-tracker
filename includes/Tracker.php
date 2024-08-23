@@ -12,9 +12,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Main Tracker Class.
  *
- * @class OptIn
+ * @class Tracker
  */
-
 if ( ! class_exists( 'Tracker', false ) ) :
     /**
      * Main Tracker Class.
@@ -25,12 +24,16 @@ if ( ! class_exists( 'Tracker', false ) ) :
 
         public $slug;
 
+        public $api_url;
+
         public $plugin_base_path;
 
         public $insights;
 
         function __construct() {
+        }
 
+        function execute() {
             add_action( 'upgrader_process_complete', array($this, 'plugin_updated'), 10, 2 );
 
             add_action($this->slug . '_tracker_optin', array($this, 'tracker_optin'));
@@ -77,7 +80,7 @@ if ( ! class_exists( 'Tracker', false ) ) :
             //generate token.
             $token_data['site_url']     = $data['url'];
             $token_data['plugin_name']  = $this->slug;
-            $response = $this->send_request($token_data, home_url() . '/wp-json/optemiz/v1/email_tracker/generate_token', true);
+            $response = $this->send_request($token_data, $this->api_url . '/wp-json/optemiz/v1/email_tracker/generate_token', true);
 
             if (is_wp_error($response)) {
                 $error_message = $response->get_error_message();
@@ -94,7 +97,7 @@ if ( ! class_exists( 'Tracker', false ) ) :
 
                     $new_data['token'] = $data['token'];
 
-                    $this->send_request($new_data, home_url() . '/wp-json/optemiz/v1/email_tracker/optin');
+                    $this->send_request($new_data, $this->api_url . '/wp-json/optemiz/v1/email_tracker/optin');
                 }
             }
         }
@@ -116,12 +119,7 @@ if ( ! class_exists( 'Tracker', false ) ) :
             $new_data['reason_info']    = $data['reason_info'];
             $new_data['status']         = 'deactivated';
 
-            error_log('-- new_data: uninstall --');
-            error_log(print_r($new_data, true));
-
-            // return;
-
-            $this->send_request($new_data, home_url() . '/wp-json/optemiz/v1/email_tracker/deactivate');
+            $this->send_request($new_data, $this->api_url . '/wp-json/optemiz/v1/email_tracker/deactivate');
         }
 
         public function send_request( $params, $url, $blocking = false ) {
@@ -157,31 +155,37 @@ if ( ! class_exists( 'Tracker', false ) ) :
          * @param $options Array
          */
         function plugin_updated( $upgrader_object, $options ) {
-
-            error_log('plugin updated on: ' . $this->plugin_base_path);
             
             // when plugin is updated.
             if( $options['action'] == 'update' && $options['type'] == 'plugin' && isset( $options['plugins'] ) ) {
                 foreach( $options['plugins'] as $plugin ) {
                     
                     if( $plugin == $this->plugin_base_path ) {
-                        $token_option_name  = $this->get_token_option_name();
-                        $already_tracked    = get_option($token_option_name);
+                        $tracking_data = $this->insights->get_tracking_data();
 
-                        //when no token exists, send data.
-                        if (false === $already_tracked) {
-                            $allow_tracking = get_option("{$this->slug}_allow_tracking");
+                        //check whether trakcing allowed or not.
+                        $allow_tracking = get_option("{$this->slug}_allow_tracking");
 
-                            if("yes" === $allow_tracking) {
-                                $tracking_data = $this->insights->get_tracking_data();
+                        if("yes" === $allow_tracking) {
 
-                                error_log('tracking data.');
-                                error_log(print_r($tracking_data, true));
+                            $token_option_name  = $this->get_token_option_name();
+                            $already_tracked    = get_option($token_option_name);
 
+                            //when no token exists, send data.
+                            if (false === $already_tracked) {
                                 $this->tracker_optin($tracking_data);
+                            }else {
+                                // $tracking_data['site_url']          = $tracking_data['url'];
+                                // $tracking_data['user_email']        = $tracking_data['admin_email'];
+                                // $tracking_data['plugin_version']    = $tracking_data['project_version'];
+
+                                // unset($tracking_data['url']);
+                                // unset($tracking_data['admin_email']);
+                                // unset($tracking_data['project_version']);
+
+                                // $this->send_request($tracking_data, $this->api_url . '/wp-json/optemiz/v1/email_tracker/updated');
                             }
                         }
-
                     }
                 }
             }
